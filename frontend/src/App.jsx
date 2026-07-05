@@ -612,7 +612,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
             <label className="text-xs font-black text-slate-500 flex items-center gap-1 mb-1.5"><MapPin size={13}/>المدينة</label>
             <select value={f.city} onChange={e=>sf("city",e.target.value)}
               className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] bg-white">
-              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني 🎉":fmt(z.cost)}</option>)}
+              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني ":fmt(z.cost)}</option>)}
             </select>
           </div>
 
