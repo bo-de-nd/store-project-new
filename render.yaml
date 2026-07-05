@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: store-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: STORE_NAME
+        sync: false
+      - key: STORE_WHATSAPP
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false

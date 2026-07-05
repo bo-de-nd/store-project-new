@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --brand: #2563EB;
+  --brand-dark: #1d4ed8;
+  --brand-light: #eff6ff;
+}
+
+*, body { font-family: 'Cairo', sans-serif; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.anim-fadeUp  { animation: fadeUp  0.5s ease forwards; }
+.anim-fadeIn  { animation: fadeIn  0.4s ease forwards; }
+.anim-scaleIn { animation: scaleIn 0.35s ease forwards; }
+
+/* نجمات التقييم */
+.star-filled { color: #f59e0b; fill: #f59e0b; }
+.star-empty  { color: #e2e8f0; fill: #e2e8f0; }
+
+/* كارد المنتج */
+.product-card:hover .product-img { transform: scale(1.07); }
+.product-img { transition: transform 0.45s cubic-bezier(.25,.46,.45,.94); }
+
+/* طباعة الفاتورة */
+@media print {
+  body > *:not(#invoice-print) { display: none !important; }
+  #invoice-print { display: block !important; position: fixed; top:0; left:0; width:100%; z-index:9999; background:#fff; }
+}
