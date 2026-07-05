@@ -222,7 +222,7 @@ function PrintableInvoice({ order, settings, onClose }) {
 
           {/* الإجمالي */}
           <div style={{background:"#f8fafc",borderRadius:12,padding:"16px 20px",maxWidth:260,marginRight:"auto"}}>
-            {[["المجموع الفرعي",fmt(order.subtotal)],["رسوم الشحن",order.shipping===0?"مجاني 🎉":fmt(order.shipping)]].map(([l,v])=>(
+            {[["المجموع الفرعي",fmt(order.subtotal)],["رسوم الشحن",order.shipping===0?"مجاني":fmt(order.shipping)]].map(([l,v])=>(
               <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:13,color:"#475569"}}>
                 <span>{l}</span><span>{v}</span>
               </div>
