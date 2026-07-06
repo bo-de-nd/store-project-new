@@ -25,6 +25,21 @@ function useShadeColor(hex, pct) {
   return "#"+((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
 }
 
+
+/* ─── useLocalStorage hook ──────────────────────────────────── */
+function useLocalStorage(key, initial) {
+  const [val, setVal] = useState(() => {
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : initial; }
+    catch { return initial; }
+  });
+  const set = useCallback((v) => {
+    const next = typeof v === "function" ? v(val) : v;
+    setVal(next);
+    try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+  }, [key, val]);
+  return [val, set];
+}
+
 /* ─── SPLASH ─────────────────────────────────────────────────── */
 function Splash({ settings, onDone }) {
   const [out, setOut] = useState(false);
@@ -44,7 +59,7 @@ function Splash({ settings, onDone }) {
             </div>
         }
         <div className="text-center">
-          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"لقطة ستور"}</h1>
+          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"متجري"}</h1>
           <p className="text-white/70 mt-1.5 text-base font-medium">تسوّق بسهولة وثقة ✨</p>
         </div>
         <div className="flex gap-2 mt-1">
@@ -67,13 +82,12 @@ export default function App() {
   const [zones, setZones]           = useState([]);
   const [products, setProducts]     = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [cart, setCart]             = useState([]);
-  const [favs, setFavs]             = useState([]);
+  const [cart, setCart]             = useLocalStorage("store_cart", []);
+  const [favs, setFavs]             = useLocalStorage("store_favs", []);
   const [cartOpen, setCartOpen]     = useState(false);
   const [modalProduct, setModalProd]= useState(null);
   const [checkoutOpen, setCheckout] = useState(false);
   const [token, setToken]           = useState(localStorage.getItem("admin_token")||"");
-  const [printInvoice, setPrintInv] = useState(null);
 
   const brand = settings.primary_color || "#2563EB";
 
@@ -109,13 +123,10 @@ export default function App() {
       {/* Splash */}
       {!splashDone && <Splash settings={settings} onDone={()=>setSplashDone(true)}/>}
 
-      {/* فاتورة PDF للطباعة */}
-      {printInvoice && <PrintableInvoice order={printInvoice} settings={settings} onClose={()=>setPrintInv(null)}/>}
-
       {route !== "admin" && <>
         <TopBar settings={settings} route={route} setRoute={setRoute} cartCount={cartCount} onCart={()=>setCartOpen(true)}/>
         {route==="shop"     && <ShopView products={products} categories={categories} loading={loading} favs={favs} setFavs={setFavs} onOpen={setModalProd} settings={settings}/>}
-        {route==="myorders" && <MyOrdersView onPrint={setPrintInv}/>}
+        {route==="myorders" && <MyOrdersView onPrint={o=>openInvoice(o.id)}/>}
         {modalProduct && <ProductModal product={modalProduct} settings={settings}
           onClose={()=>{setModalProd(null);window.history.replaceState({},"","/");}}
           onAdd={i=>{addToCart(i);setModalProd(null);setCartOpen(true);}}/>}
@@ -128,119 +139,20 @@ export default function App() {
       {route==="admin" && (token
         ? <AdminPanel settings={settings} categories={categories} zones={zones} token={token}
             onLogout={()=>{localStorage.removeItem("admin_token");setToken("");}}
-            onChanged={loadAll} onPrint={setPrintInv}/>
+            onChanged={loadAll} onPrint={o=>openInvoice(o.id)}/>
         : <AdminLogin onLogin={t=>{localStorage.setItem("admin_token",t);setToken(t);}} brand={brand}/>
       )}
     </div>
   );
 }
 
-/* ─── PrintableInvoice ───────────────────────────────────────── */
-function PrintableInvoice({ order, settings, onClose }) {
-  const ref = useRef();
-  useEffect(() => {
-    const t = setTimeout(() => { window.print(); }, 400);
-    return () => clearTimeout(t);
-  }, []);
-  const brand = settings.primary_color || "#2563EB";
-  const storeName = settings.store_name || "المتجر";
-  const date = new Date(order.created_at||Date.now()).toLocaleDateString("ar-YE",{year:"numeric",month:"long",day:"numeric"});
-  const items = order.items||[];
-  return (
-    <>
-      {/* خلفية شفافة لإغلاق */}
-      <div className="fixed inset-0 z-[150] bg-black/60 flex items-center justify-center print:hidden" onClick={onClose}>
-        <div className="bg-white rounded-2xl p-6 text-center shadow-2xl" onClick={e=>e.stopPropagation()}>
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{background:brand+"22"}}>
-            <FileText size={28} style={{color:brand}}/>
-          </div>
-          <h3 className="font-black text-lg mb-1">جاهز للطباعة</h3>
-          <p className="text-slate-400 text-sm mb-4">نافذة الطباعة ستفتح الآن. اختر "حفظ كـ PDF" من الطابعة.</p>
-          <div className="flex gap-2 justify-center">
-            <button onClick={()=>window.print()} className="text-white px-6 py-2.5 rounded-xl text-sm font-bold" style={{background:brand}}>🖨️ طباعة / PDF</button>
-            <button onClick={onClose} className="border-2 border-slate-200 px-5 py-2 rounded-xl text-sm font-medium text-slate-600">إغلاق</button>
-          </div>
-        </div>
-      </div>
-
-      {/* محتوى الفاتورة */}
-      <div id="invoice-print" ref={ref} className="hidden print:block" style={{fontFamily:"Cairo,Arial,sans-serif",direction:"rtl",color:"#0f172a",background:"#fff",padding:"24px"}}>
-        <div style={{maxWidth:720,margin:"0 auto"}}>
-          {/* هيدر */}
-          <div style={{background:brand,borderRadius:12,padding:"24px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-            <div style={{color:"#fff"}}>
-              <div style={{fontSize:22,fontWeight:800}}>{storeName}</div>
-              <div style={{fontSize:12,opacity:.75,marginTop:4}}>فاتورة مبيعات</div>
-            </div>
-            <div style={{background:"rgba(255,255,255,.2)",color:"#fff",padding:"6px 18px",borderRadius:50,fontSize:13,fontWeight:700}}>
-              {order.payment_confirmed?"✓ مدفوعة":"⏳ بانتظار الدفع"}
-            </div>
-          </div>
-
-          {/* معلومات */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:24}}>
-            {[
-              ["رقم الطلب", order.id, "monospace"],
-              ["التاريخ", date, ""],
-              ["حالة الشحن", order.status||"قيد المعالجة", ""],
-              ["اسم العميل", order.customer_name, ""],
-              ["رقم الهاتف", order.customer_phone, "ltr"],
-              ["المدينة", order.customer_city, ""],
-            ].map(([lbl,val,dir])=>(
-              <div key={lbl} style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px"}}>
-                <div style={{fontSize:10,color:"#94a3b8",fontWeight:700,marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>{lbl}</div>
-                <div style={{fontSize:13,fontWeight:600,direction:dir==="ltr"?"ltr":"rtl"}}>{val}</div>
-              </div>
-            ))}
-            <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",gridColumn:"1/-1"}}>
-              <div style={{fontSize:10,color:"#94a3b8",fontWeight:700,marginBottom:3}}>العنوان</div>
-              <div style={{fontSize:13,fontWeight:600}}>{order.customer_address}</div>
-            </div>
-          </div>
-
-          {/* جدول المنتجات */}
-          <table style={{width:"100%",borderCollapse:"collapse",marginBottom:20,fontSize:13}}>
-            <thead>
-              <tr style={{background:brand+"18"}}>
-                {["المنتج","المقاس","الكمية","سعر الوحدة","الإجمالي"].map(h=>(
-                  <th key={h} style={{padding:"10px 12px",textAlign:h==="المنتج"?"right":"center",color:brand,fontWeight:700}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((i,idx)=>(
-                <tr key={idx} style={{borderBottom:"1px solid #f1f5f9"}}>
-                  <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600}}>{i.name}</td>
-                  <td style={{padding:"10px 12px",textAlign:"center"}}>{i.size||"-"}</td>
-                  <td style={{padding:"10px 12px",textAlign:"center"}}>{i.qty}</td>
-                  <td style={{padding:"10px 12px",textAlign:"center"}}>{fmt(i.price)}</td>
-                  <td style={{padding:"10px 12px",textAlign:"center",fontWeight:700,color:brand}}>{fmt(i.price*i.qty)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* الإجمالي */}
-          <div style={{background:"#f8fafc",borderRadius:12,padding:"16px 20px",maxWidth:260,marginRight:"auto"}}>
-            {[["المجموع الفرعي",fmt(order.subtotal)],["رسوم الشحن",order.shipping===0?"مجاني":fmt(order.shipping)]].map(([l,v])=>(
-              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:13,color:"#475569"}}>
-                <span>{l}</span><span>{v}</span>
-              </div>
-            ))}
-            <div style={{display:"flex",justifyContent:"space-between",borderTop:`2px solid ${brand}30`,marginTop:8,paddingTop:10,fontSize:16,fontWeight:800,color:brand}}>
-              <span>الإجمالي الكلي</span><span>{fmt(order.total)}</span>
-            </div>
-          </div>
-
-          {/* فوتر */}
-          <div style={{textAlign:"center",marginTop:24,paddingTop:16,borderTop:"1px solid #f1f5f9",fontSize:12,color:"#94a3b8"}}>
-            شكرًا لتسوقك من {storeName} · هذه الفاتورة وثيقة رسمية لعملية الشراء
-          </div>
-        </div>
-      </div>
-    </>
-  );
+/* ─── openInvoice helper ────────────────────────────────────── */
+// يفتح الفاتورة من الباك إند في تاب جديد — يدعم الطباعة وحفظ PDF
+function openInvoice(orderId) {
+  if (!orderId) return;
+  window.open(api.invoiceUrl(orderId), "_blank", "noopener");
 }
+
 
 /* ─── TOP BAR ─────────────────────────────────────────────────── */
 function TopBar({ settings, route, setRoute, cartCount, onCart }) {
@@ -555,7 +467,8 @@ function CartDrawer({ cart, products, setCart, onClose, onCheckout }) {
 
 /* ─── CHECKOUT ──────────────────────────────────────────────────── */
 function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
-  const [f, setF] = useState({ name:"", phone:"", city:zones[0]?.city||"", address:"" });
+  const [savedInfo, setSavedInfo] = useLocalStorage("store_customer_info", {});
+  const [f, setF] = useState({ name:savedInfo.name||"", phone:savedInfo.phone||"", city:savedInfo.city||zones[0]?.city||"", address:savedInfo.address||"" });
   const [busy, setBusy]     = useState(false);
   const [err, setErr]       = useState("");
   const [result, setResult] = useState(null);
@@ -570,6 +483,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
     setBusy(true); setErr("");
     try {
       const res = await api.createOrder({customerName:f.name,customerPhone:f.phone,customerCity:f.city,customerAddress:f.address,items:items.map(i=>({id:i.id,qty:i.qty,size:i.size})),shipping:zone.cost});
+      setSavedInfo({ name:f.name, phone:f.phone, city:f.city, address:f.address });
       setResult(res);
       onDone();
       window.location.href = res.whatsappLink;
@@ -612,7 +526,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
             <label className="text-xs font-black text-slate-500 flex items-center gap-1 mb-1.5"><MapPin size={13}/>المدينة</label>
             <select value={f.city} onChange={e=>sf("city",e.target.value)}
               className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] bg-white">
-              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني ":fmt(z.cost)}</option>)}
+              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني 🎉":fmt(z.cost)}</option>)}
             </select>
           </div>
 
@@ -623,13 +537,16 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
               </div>
             ))}
             <div className="border-t border-slate-200 pt-2 mt-1 space-y-1.5">
-              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني ":fmt(zone.cost)]].map(([l,v])=>(
+              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني 🎉":fmt(zone.cost)]].map(([l,v])=>(
                 <div key={l} className="flex justify-between text-sm text-slate-500"><span>{l}</span><span>{v}</span></div>
               ))}
               <div className="flex justify-between font-black text-base text-[var(--brand)] pt-1"><span>الإجمالي</span><span>{fmt(total)}</span></div>
             </div>
           </div>
 
+          {savedInfo.name && (
+            <p className="text-[11px] text-slate-400 flex items-center gap-1"><Check size={10}/> تم تعبئة بياناتك المحفوظة تلقائياً</p>
+          )}
           <button disabled={!f.name.trim()||!f.phone.trim()||!f.address.trim()||busy} onClick={submit}
             className="w-full bg-[var(--brand)] disabled:bg-slate-200 text-white py-4 rounded-2xl font-black text-sm shadow hover:shadow-lg transition hover:scale-[1.01] active:scale-[0.99]">
             {busy?"جاري الإرسال...":"✓ تأكيد الطلب والتوجه لواتساب"}
@@ -641,30 +558,144 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
 }
 
 /* ─── MY ORDERS ─────────────────────────────────────────────────── */
-function MyOrdersView({ onPrint }) {
-  const [phone, setPhone] = useState(""); const [orders, setOrders] = useState(null); const [busy, setBusy] = useState(false);
-  const search=()=>{if(!phone.trim())return;setBusy(true);api.getOrdersByPhone(phone.trim()).then(setOrders).finally(()=>setBusy(false));};
+const STATUS_STEPS = ["قيد المعالجة","تم الشحن","تم التسليم"];
+const STATUS_ICONS = { "قيد المعالجة":"🔄", "تم الشحن":"🚚", "تم التسليم":"✅" };
+const STATUS_COLORS = { "قيد المعالجة":"bg-amber-50 text-amber-700 border-amber-200", "تم الشحن":"bg-blue-50 text-blue-700 border-blue-200", "تم التسليم":"bg-emerald-50 text-emerald-700 border-emerald-200" };
+
+function OrderTimeline({ status, paymentConfirmed }) {
+  const idx = STATUS_STEPS.indexOf(status);
   return (
-    <div className="max-w-md mx-auto px-4 py-12 min-h-screen">
-      <h2 className="font-black text-2xl text-center mb-1">متابعة طلباتي</h2>
-      <p className="text-slate-400 text-sm text-center mb-6">أدخل رقم هاتفك لعرض جميع طلباتك</p>
-      <div className="flex gap-2 mb-6">
-        <input value={phone} onChange={e=>setPhone(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()} placeholder="أدخل رقم الهاتف"
-          className="flex-1 border-2 border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[var(--brand)] transition"/>
-        <button onClick={search} className="bg-[var(--brand)] text-white px-5 rounded-2xl font-black text-sm hover:shadow-md transition">{busy?<RefreshCw size={16} className="animate-spin"/>:"بحث"}</button>
+    <div className="mt-3 mb-2">
+      {/* حالة الدفع */}
+      <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-xl mb-3 font-bold border ${paymentConfirmed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}>
+        <span>{paymentConfirmed ? "💰 تم تأكيد الدفع" : "⏳ بانتظار تأكيد الدفع"}</span>
       </div>
-      {orders?.length===0 && <p className="text-center text-slate-400 py-10">لا توجد طلبات بهذا الرقم</p>}
-      <div className="space-y-3">
-        {orders?.map(o=>(
-          <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-mono font-black text-slate-700">{o.id}</span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${o.status==="تم التسليم"?"bg-emerald-50 text-emerald-600":"bg-blue-50 text-blue-600"}`}>{o.status}</span>
+      {/* مراحل الطلب */}
+      <div className="flex items-center gap-0">
+        {STATUS_STEPS.map((step, i) => {
+          const done = i <= idx;
+          const active = i === idx;
+          return (
+            <React.Fragment key={step}>
+              <div className="flex flex-col items-center gap-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all ${done ? "bg-[var(--brand)] border-[var(--brand)] text-white shadow-md" : "bg-white border-slate-200 text-slate-300"}`}>
+                  {done ? (active ? STATUS_ICONS[step] : "✓") : (i+1)}
+                </div>
+                <span className={`text-[9px] font-bold whitespace-nowrap ${done ? "text-[var(--brand)]" : "text-slate-300"}`}>{step}</span>
+              </div>
+              {i < STATUS_STEPS.length - 1 && (
+                <div className={`flex-1 h-0.5 mb-4 mx-1 ${i < idx ? "bg-[var(--brand)]" : "bg-slate-200"}`}/>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MyOrdersView({ onPrint }) {
+  const [savedPhone, setSavedPhone] = useLocalStorage("store_customer_phone", "");
+  const [phone, setPhone] = useState(savedPhone);
+  const [orders, setOrders] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [autoLoaded, setAutoLoaded] = useState(false);
+
+  const search = (ph) => {
+    const p = (ph ?? phone).trim();
+    if (!p) return;
+    setBusy(true);
+    setSavedPhone(p);
+    api.getOrdersByPhone(p).then(setOrders).finally(() => setBusy(false));
+  };
+
+  // تحميل تلقائي إذا كان الهاتف محفوظاً
+  useEffect(() => {
+    if (savedPhone && !autoLoaded) { setAutoLoaded(true); search(savedPhone); }
+  }, []);
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-10 min-h-screen bg-slate-50">
+      {/* هيدر */}
+      <div className="text-center mb-6">
+        <div className="w-14 h-14 rounded-2xl bg-[var(--brand)]/10 flex items-center justify-center mx-auto mb-3">
+          <ListOrdered size={24} className="text-[var(--brand)]"/>
+        </div>
+        <h2 className="font-black text-2xl mb-1">طلباتي</h2>
+        <p className="text-slate-400 text-sm">تابع حالة طلباتك ومدفوعاتك لحظة بلحظة</p>
+      </div>
+
+      {/* بحث */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5">
+        <label className="text-xs font-black text-slate-500 block mb-2 flex items-center gap-1"><Phone size={12}/>رقم الهاتف</label>
+        <div className="flex gap-2">
+          <input value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key==="Enter" && search()}
+            placeholder="أدخل رقم الهاتف المستخدم عند الطلب"
+            className="flex-1 border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] transition"/>
+          <button onClick={() => search()} disabled={busy}
+            className="bg-[var(--brand)] text-white px-5 rounded-xl font-black text-sm hover:shadow-md transition flex items-center gap-1.5">
+            {busy ? <RefreshCw size={15} className="animate-spin"/> : <Search size={15}/>}
+            {busy ? "" : "بحث"}
+          </button>
+        </div>
+        {savedPhone && <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1"><Check size={10}/> تم حفظ رقمك تلقائياً للمرة القادمة</p>}
+      </div>
+
+      {/* النتائج */}
+      {orders !== null && orders.length === 0 && (
+        <div className="text-center py-16 text-slate-400">
+          <Package size={48} className="mx-auto mb-3 opacity-20"/>
+          <p className="font-medium">لا توجد طلبات بهذا الرقم</p>
+          <p className="text-xs mt-1">تأكد من الرقم المستخدم عند الطلب</p>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {orders?.map(o => (
+          <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            {/* رأس الكارد */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+              <div>
+                <span className="font-mono font-black text-slate-700 text-sm">{o.id}</span>
+                <p className="text-[10px] text-slate-400 mt-0.5">{new Date(o.created_at||Date.now()).toLocaleDateString("ar-YE",{year:"numeric",month:"long",day:"numeric"})}</p>
+              </div>
+              <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${STATUS_COLORS[o.status]||"bg-slate-50 text-slate-500 border-slate-200"}`}>
+                {STATUS_ICONS[o.status]} {o.status}
+              </span>
             </div>
-            <ul className="text-xs text-slate-400 mb-2 space-y-0.5">{o.items?.map((i,idx)=><li key={idx}>• {i.name} ({i.size}) × {i.qty}</li>)}</ul>
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50">
-              <span className="font-black text-[var(--brand)]">{fmt(o.total)}</span>
-              <button onClick={()=>onPrint(o)} className="text-xs text-slate-500 flex items-center gap-1 hover:text-[var(--brand)] transition"><FileText size={13}/> طباعة الفاتورة</button>
+
+            <div className="p-4">
+              {/* مخطط التقدم */}
+              <OrderTimeline status={o.status} paymentConfirmed={o.payment_confirmed||o.paymentConfirmed}/>
+
+              {/* المنتجات */}
+              <div className="bg-slate-50 rounded-xl p-3 mt-3 space-y-1.5">
+                {o.items?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-xs">
+                    <span className="text-slate-600">{item.name} <span className="text-slate-400">({item.size}) × {item.qty}</span></span>
+                    <span className="font-bold text-slate-700">{fmt(item.price * item.qty)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-slate-200 pt-1.5 mt-1.5 flex justify-between">
+                  <span className="text-xs text-slate-500">الإجمالي</span>
+                  <span className="text-sm font-black text-[var(--brand)]">{fmt(o.total)}</span>
+                </div>
+              </div>
+
+              {/* أزرار */}
+              <div className="flex gap-2 mt-3">
+                <a href={api.invoiceUrl(o.id)} target="_blank" rel="noreferrer"
+                  className="flex-1 border-2 border-slate-200 text-slate-600 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:border-[var(--brand)] hover:text-[var(--brand)] transition">
+                  <FileText size={13}/> طباعة الفاتورة
+                </a>
+                {o.status !== "تم التسليم" && (
+                  <button onClick={() => search()}
+                    className="border-2 border-slate-200 text-slate-500 px-3 rounded-xl hover:border-[var(--brand)] hover:text-[var(--brand)] transition"
+                    title="تحديث الحالة">
+                    <RefreshCw size={14}/>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -834,7 +865,7 @@ function OrdersTab({ orders, onChanged, onPrint }) {
               <select value={o.status} onChange={e=>upStatus(o.id,e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
                 <option>قيد المعالجة</option><option>تم الشحن</option><option>تم التسليم</option>
               </select>
-              <button onClick={()=>onPrint(o)} className="text-xs text-slate-500 hover:text-[var(--brand)] flex items-center gap-1 transition"><FileText size={13}/>فاتورة</button>
+              <a href={api.invoiceUrl(o.id)} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:text-[var(--brand)] flex items-center gap-1 transition"><FileText size={13}/>فاتورة PDF</a>
             </div>
           </div>
         </div>
@@ -986,7 +1017,7 @@ function ShippingTab({ zones, onChanged }) {
             ):(
               <div className="flex items-center justify-between">
                 <div><p className="font-bold text-slate-700 flex items-center gap-1.5"><MapPin size={13} className="text-[var(--brand)]"/>{z.city}</p>
-                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني ":fmt(z.cost)}</p>
+                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني 🎉":fmt(z.cost)}</p>
                   {z.notes&&<p className="text-xs text-slate-400 mt-0.5">{z.notes}</p>}</div>
                 <div className="flex gap-2">
                   <button onClick={()=>setEditing({...z})} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-[var(--brand)] hover:bg-[var(--brand-light)] transition"><Edit3 size={13}/></button>
