@@ -71,8 +71,8 @@ function Splash({ settings, onDone }) {
             </div>
         }
         <div className="text-center">
-          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"متجري"}</h1>
-          <p className="text-white/70 mt-1.5 text-base font-medium">تسوّق بسهولة وثقة ✨</p>
+          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"لقطة ستور"}</h1>
+          <p className="text-white/70 mt-1.5 text-base font-medium">✨ تسوّق بسهولة وثقة ✨</p>
         </div>
         <div className="flex gap-2 mt-1">
           {[0,150,300].map(d => (
@@ -596,7 +596,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
             <label className="text-xs font-black text-slate-500 flex items-center gap-1 mb-1.5"><MapPin size={13}/>المدينة</label>
             <select value={f.city} onChange={e=>sf("city",e.target.value)}
               className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] bg-white">
-              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني 🎉":fmt(z.cost)}</option>)}
+              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني ":fmt(z.cost)}</option>)}
             </select>
           </div>
 
@@ -607,7 +607,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
               </div>
             ))}
             <div className="border-t border-slate-200 pt-2 mt-1 space-y-1.5">
-              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني 🎉":fmt(zone.cost)]].map(([l,v])=>(
+              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني ":fmt(zone.cost)]].map(([l,v])=>(
                 <div key={l} className="flex justify-between text-sm text-slate-500"><span>{l}</span><span>{v}</span></div>
               ))}
               <div className="flex justify-between font-black text-base text-[var(--brand)] pt-1"><span>الإجمالي</span><span>{fmt(total)}</span></div>
@@ -1204,7 +1204,7 @@ function ShippingTab({ zones, onChanged }) {
             ):(
               <div className="flex items-center justify-between">
                 <div><p className="font-bold text-slate-700 flex items-center gap-1.5"><MapPin size={13} className="text-[var(--brand)]"/>{z.city}</p>
-                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني 🎉":fmt(z.cost)}</p>
+                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني ":fmt(z.cost)}</p>
                   {z.notes&&<p className="text-xs text-slate-400 mt-0.5">{z.notes}</p>}</div>
                 <div className="flex gap-2">
                   <button onClick={()=>setEditing({...z})} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-[var(--brand)] hover:bg-[var(--brand-light)] transition"><Edit3 size={13}/></button>
