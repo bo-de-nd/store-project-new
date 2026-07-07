@@ -183,7 +183,7 @@ router.get("/:id/invoice", async (req, res) => {
       <div class="t-row t-grand"><span>الإجمالي</span><span>${fmt(order.total)}</span></div>
     </div>
   </div>
-  <div class="footer">شكرًا لتسوقك من ${storeName} · يمكنك الطباعة أو الحفظ كـ PDF من الزر أعلاه</div>
+  <div class="footer">شكرًا لتسوقك من ${storeName} · </div>
 </div>
 </body></html>`;
 
