@@ -167,7 +167,7 @@ router.get("/:id/invoice", async (req, res) => {
       <div class="card"><label>اسم العميل</label><span>${order.customer_name}</span></div>
       <div class="card"><label>رقم الهاتف</label><span dir="ltr">${order.customer_phone}</span></div>
       <div class="card"><label>المدينة</label><span>${order.customer_city}</span></div>
-      <div class="card"><label>حالة الدفع</label><span class="status ${order.paymentConfirmed ? 'paid' : 'unpaid'}">${order.paymentConfirmed ? "✓ تم تأكيد الدفع" : "⏳ بانتظار الدفع"}</span></div>
+      <div class="card"><label>حالة الدفع</label><span class="status ${order.paymentConfirmed ? 'paid' : 'unpaid'}">${order.paymentConfirmed ? "✓ تم تأكيد الدفع" : " بانتظار الدفع"}</span></div>
       <div class="card" style="grid-column:1/-1"><label>عنوان الشحن</label><span>${order.customer_address}</span></div>
     </div>
     <table>
