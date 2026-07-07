@@ -11,23 +11,25 @@ services:
         value: 22.11.0
       - key: PORT
         value: 4000
+      # ── قاعدة البيانات ──────────────────────────
       - key: DATABASE_URL
         sync: false
+      # ── Supabase Storage (الصور) ────────────────
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # ── الأمان ──────────────────────────────────
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: JWT_SECRET
         sync: false
+      # ── المتجر ──────────────────────────────────
       - key: STORE_NAME
         sync: false
       - key: STORE_WHATSAPP
         sync: false
       - key: FRONTEND_ORIGIN
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
         sync: false
