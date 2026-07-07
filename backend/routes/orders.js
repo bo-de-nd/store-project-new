@@ -179,7 +179,7 @@ router.get("/:id/invoice", async (req, res) => {
     </table>
     <div class="totals">
       <div class="t-row"><span>المجموع الفرعي</span><span>${fmt(order.subtotal)}</span></div>
-      <div class="t-row"><span>رسوم الشحن</span><span>${order.shipping === 0 ? "مجاني 🎉" : fmt(order.shipping)}</span></div>
+      <div class="t-row"><span>رسوم الشحن</span><span>${order.shipping === 0 ? "مجاني " : fmt(order.shipping)}</span></div>
       <div class="t-row t-grand"><span>الإجمالي</span><span>${fmt(order.total)}</span></div>
     </div>
   </div>
