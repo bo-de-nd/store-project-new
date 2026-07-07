@@ -59,8 +59,8 @@ function Splash({ settings, onDone }) {
             </div>
         }
         <div className="text-center">
-          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"متجري"}</h1>
-          <p className="text-white/70 mt-1.5 text-base font-medium">تسوّق بسهولة وثقة ✨</p>
+          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"لقطة ستور"}</h1>
+          <p className="text-white/70 mt-1.5 text-base font-medium">✨ تسوّق بسهولة وثقة ✨</p>
         </div>
         <div className="flex gap-2 mt-1">
           {[0,150,300].map(d => (
