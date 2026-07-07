@@ -452,10 +452,16 @@ function ProductModal({ product: p, settings, onClose, onAdd }) {
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_,i)=><Star key={i} size={14} className={i<Math.round(p.rating||0)?"star-filled":"star-empty"}/>)}
-              <span className="text-xs text-slate-400 mr-1">{p.reviews||0} تقييم</span>
-            </div>
+            <ProductRating
+  productId={p.id}
+  rating={p.rating || 0}
+  reviews={p.reviews || 0}
+  interactive={true}
+  onRated={(rating, reviews) => {
+    p.rating = rating;
+    p.reviews = reviews;
+  }}
+/>
             <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${sl.cls}`}>{sl.text}</span>
           </div>
 
