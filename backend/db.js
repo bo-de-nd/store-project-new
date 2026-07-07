@@ -52,10 +52,21 @@ async function initDB() {
       price INTEGER NOT NULL,
       color TEXT DEFAULT '',
       sizes JSONB DEFAULT '[]',
+      variant_label TEXT DEFAULT 'المقاس',
       stock INTEGER NOT NULL DEFAULT 0,
       images JSONB DEFAULT '[]',
       rating REAL DEFAULT 0,
       reviews INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- إضافة العمود للجدول القديم إن لم يكن موجوداً
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_label TEXT DEFAULT 'المقاس';
+
+    CREATE TABLE IF NOT EXISTS ratings (
+      id SERIAL PRIMARY KEY,
+      product_id TEXT NOT NULL,
+      stars INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 

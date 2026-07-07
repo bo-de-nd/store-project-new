@@ -54,6 +54,13 @@ export const api = {
   invoiceUrl:       (id)   => `${BASE}/orders/${id}/invoice`,
   getStats:         ()     => req(`${BASE}/orders/stats/summary`, { headers:auth() }),
 
+  // تقييمات
+  rateProduct: (productId, stars) => req(`${BASE}/ratings/${productId}`, { method:"POST", headers:J(), body:JSON.stringify({stars}) }),
+  getProductRating: (productId) => req(`${BASE}/ratings/${productId}`),
+
   // مصادقة
   login: (u, p) => req(`${BASE}/auth/login`, { method:"POST", headers:J(), body:JSON.stringify({username:u,password:p}) }),
 };
+
+// تقييمات (يُضاف في نهاية الملف)
+// نحتاج تصدير دالة منفصلة — نُضيف في الكائن

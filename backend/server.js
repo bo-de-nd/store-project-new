@@ -16,6 +16,7 @@ app.use("/api/settings",   require("./routes/settings"));
 app.use("/api/categories", require("./routes/categories"));
 app.use("/api/shipping",   require("./routes/shipping"));
 app.use("/api/upload",     require("./routes/upload"));
+app.use("/api/ratings", require("./routes/ratings"));
 app.use("/share",          require("./routes/share"));
 
 app.get("/api/health", (req, res) => res.json({ ok: true, store: process.env.STORE_NAME }));

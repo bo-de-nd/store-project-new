@@ -40,6 +40,18 @@ function useLocalStorage(key, initial) {
   return [val, set];
 }
 
+
+/* ─── أنواع خيارات المنتج ───────────────────────────────────── */
+const VARIANT_TYPES = [
+  { label: "لا يوجد خيارات",  value: "none",    placeholder: "" },
+  { label: "المقاس",           value: "المقاس",   placeholder: "S,M,L,XL  أو  38,39,40,41" },
+  { label: "حجم العبوة (مل)",  value: "الحجم",   placeholder: "50ml,100ml,200ml" },
+  { label: "اللون",            value: "اللون",   placeholder: "أسود,أبيض,ذهبي" },
+  { label: "النكهة",           value: "النكهة",  placeholder: "شوكولاتة,فانيليا,فراولة" },
+  { label: "الوزن",            value: "الوزن",   placeholder: "250g,500g,1kg" },
+  { label: "خيار مخصص",        value: "custom",  placeholder: "" },
+];
+
 /* ─── SPLASH ─────────────────────────────────────────────────── */
 function Splash({ settings, onDone }) {
   const [out, setOut] = useState(false);
@@ -59,8 +71,8 @@ function Splash({ settings, onDone }) {
             </div>
         }
         <div className="text-center">
-          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"لقطة ستور"}</h1>
-          <p className="text-white/70 mt-1.5 text-base font-medium">✨ تسوّق بسهولة وثقة ✨</p>
+          <h1 className="text-white text-4xl font-black drop-shadow">{settings.store_name||"متجري"}</h1>
+          <p className="text-white/70 mt-1.5 text-base font-medium">تسوّق بسهولة وثقة ✨</p>
         </div>
         <div className="flex gap-2 mt-1">
           {[0,150,300].map(d => (
@@ -334,13 +346,71 @@ function ProductCard({ p, fav, onToggleFav, onClick }) {
           {[...Array(5)].map((_,i)=>(
             <Star key={i} size={11} className={i<Math.round(p.rating||0)?"star-filled":"star-empty"}/>
           ))}
-          <span className="text-[10px] text-slate-400 mr-1">({p.reviews||0})</span>
+          <span className="text-[10px] text-slate-400 mr-1">{p.rating?.toFixed(1)||"0"} ({p.reviews||0})</span>
         </div>
         <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
           <span className="text-base font-black text-[var(--brand)]">{fmt(p.price)}</span>
           <span className="text-[10px] bg-[var(--brand-light)] text-[var(--brand)] px-2 py-0.5 rounded-full font-semibold">{p.category}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── ProductRating Component ───────────────────────────────── */
+function ProductRating({ productId, rating, reviews, interactive, onRated }) {
+  const [myRating, setMyRating]   = useLocalStorage(`rated_${productId}`, 0);
+  const [hovered, setHovered]     = useState(0);
+  const [current, setCurrent]     = useState(rating);
+  const [count, setCount]         = useState(reviews);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage]     = useState("");
+
+  const handleRate = async (stars) => {
+    if (myRating || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await api.rateProduct(productId, stars);
+      setMyRating(stars);
+      setCurrent(res.rating);
+      setCount(res.reviews);
+      setMessage("شكراً على تقييمك! ⭐");
+      if (onRated) onRated(res.rating, res.reviews);
+      setTimeout(() => setMessage(""), 3000);
+    } catch { setMessage("تعذّر إرسال التقييم"); }
+    finally { setSubmitting(false); }
+  };
+
+  const displayRating = hovered || myRating || current;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-1">
+        {[1,2,3,4,5].map(i => (
+          <button key={i}
+            onClick={() => interactive && !myRating && handleRate(i)}
+            onMouseEnter={() => interactive && !myRating && setHovered(i)}
+            onMouseLeave={() => setHovered(0)}
+            className={`transition-transform ${interactive && !myRating ? "cursor-pointer hover:scale-125" : "cursor-default"}`}
+            disabled={!!myRating || submitting}>
+            <Star size={22}
+              className={`transition-colors ${
+                i <= displayRating ? "fill-amber-400 text-amber-400" :
+                i <= current       ? "fill-amber-300 text-amber-300" :
+                                     "fill-slate-200 text-slate-200"
+              }`}/>
+          </button>
+        ))}
+        <span className="text-sm font-bold text-slate-700">{current.toFixed(1)}</span>
+        <span className="text-xs text-slate-400">({count} تقييم)</span>
+      </div>
+      {interactive && !myRating && (
+        <p className="text-[11px] text-slate-400">اضغط على النجوم لتقييم هذا المنتج</p>
+      )}
+      {interactive && myRating > 0 && (
+        <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1"><Check size={11}/> قيّمت هذا المنتج بـ {myRating} نجوم</p>
+      )}
+      {message && <p className="text-[11px] text-[var(--brand)] font-medium mt-0.5">{message}</p>}
     </div>
   );
 }
@@ -389,9 +459,9 @@ function ProductModal({ product: p, settings, onClose, onAdd }) {
             <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${sl.cls}`}>{sl.text}</span>
           </div>
 
-          {p.sizes?.length>0 && (
+          {p.sizes?.length>0 && p.variant_label !== "none" && (
             <div className="mb-4">
-              <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">المقاس</p>
+              <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">{p.variant_label || "المقاس"}</p>
               <div className="flex flex-wrap gap-2">
                 {p.sizes.map(s=>(
                   <button key={s} onClick={()=>setSize(s)}
@@ -526,7 +596,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
             <label className="text-xs font-black text-slate-500 flex items-center gap-1 mb-1.5"><MapPin size={13}/>المدينة</label>
             <select value={f.city} onChange={e=>sf("city",e.target.value)}
               className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] bg-white">
-              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني ":fmt(z.cost)}</option>)}
+              {zones.map(z=><option key={z.id} value={z.city}>{z.city} — {z.cost===0?"مجاني 🎉":fmt(z.cost)}</option>)}
             </select>
           </div>
 
@@ -537,7 +607,7 @@ function CheckoutModal({ cart, products, settings, zones, onClose, onDone }) {
               </div>
             ))}
             <div className="border-t border-slate-200 pt-2 mt-1 space-y-1.5">
-              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني ":fmt(zone.cost)]].map(([l,v])=>(
+              {[["المجموع الفرعي",fmt(subtotal)],["رسوم الشحن",zone.cost===0?"مجاني 🎉":fmt(zone.cost)]].map(([l,v])=>(
                 <div key={l} className="flex justify-between text-sm text-slate-500"><span>{l}</span><span>{v}</span></div>
               ))}
               <div className="flex justify-between font-black text-base text-[var(--brand)] pt-1"><span>الإجمالي</span><span>{fmt(total)}</span></div>
@@ -906,45 +976,162 @@ function ProductsTab({ products, cats, onChanged }) {
 }
 
 function ProductModal2({ product, cats, onClose, onSaved }) {
-  const [f,setF]=useState(product); const [err,setErr]=useState(""); const [uploading,setUp]=useState(false);
-  const ref=useRef();
-  const sf=(k,v)=>setF(x=>({...x,[k]:v}));
-  const upload=async e=>{const file=e.target.files[0];if(!file)return;setUp(true);try{const r=await api.uploadImage(file);sf("images",[r.url]);}catch(er){setErr(er.message);}finally{setUp(false);}};
-  const save=async()=>{try{if(f.id)await api.updateProduct(f.id,f);else await api.createProduct(f);onSaved();}catch(e){setErr(e.message);}};
+  const getVariantType = (vl) => {
+    if (!vl || vl === "none") return "none";
+    const found = VARIANT_TYPES.find(v => v.value === vl && v.value !== "custom");
+    return found ? found.value : "custom";
+  };
+
+  const [f, setF]           = useState({ ...product, variant_label: product.variant_label || "المقاس" });
+  const [err, setErr]       = useState("");
+  const [uploading, setUp]  = useState(false);
+  const [variantType, setVT]= useState(getVariantType(product.variant_label));
+  const [customLabel, setCL]= useState(getVariantType(product.variant_label) === "custom" ? product.variant_label : "");
+  const ref = useRef();
+
+  const sf = (k, v) => setF(x => ({ ...x, [k]: v }));
+
+  const handleVariantType = (val) => {
+    setVT(val);
+    if (val === "none")   { sf("variant_label", "none");  sf("sizes", []); }
+    else if (val !== "custom") sf("variant_label", val);
+  };
+
+  const handleCustomLabel = (v) => {
+    setCL(v);
+    sf("variant_label", v);
+  };
+
+  const upload = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUp(true);
+    try { const r = await api.uploadImage(file); sf("images", [r.url]); }
+    catch (er) { setErr(er.message); }
+    finally { setUp(false); }
+  };
+
+  const save = async () => {
+    try {
+      const payload = { ...f };
+      if (variantType === "none") payload.sizes = [];
+      if (f.id) await api.updateProduct(f.id, payload);
+      else await api.createProduct(payload);
+      onSaved();
+    } catch (e) { setErr(e.message); }
+  };
+
+  const activeVariant = VARIANT_TYPES.find(v => v.value === variantType);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-3xl">
+      <div className="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-3xl z-10">
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><ChevronLeft size={16}/></button>
-          <h3 className="font-black">{f.id?"تعديل المنتج":"منتج جديد"}</h3>
+          <h3 className="font-black">{f.id ? "تعديل المنتج" : "منتج جديد"}</h3>
           <span className="w-8"/>
         </div>
-        <div className="p-5 space-y-3">
+
+        <div className="p-5 space-y-4">
           {err && <div className="text-xs text-red-600 bg-red-50 rounded-xl p-3">{err}</div>}
+
+          {/* صورة */}
           <div>
             <label className="text-xs font-black text-slate-500 mb-1.5 block">صورة المنتج</label>
             <div className="flex items-center gap-3">
-              {f.images?.[0]?<img src={api.fileUrl(f.images[0])} className="w-16 h-16 rounded-xl object-cover border-2 border-slate-200"/>:<div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center"><Img size={20} className="text-slate-300"/></div>}
-              <button onClick={()=>ref.current.click()} disabled={uploading} className="text-xs border-2 border-slate-200 rounded-xl px-4 py-2.5 font-semibold flex items-center gap-1.5 hover:border-[var(--brand)] transition">
-                <Upload size={13}/>{uploading?"جاري...":"رفع صورة"}
-              </button>
+              {f.images?.[0]
+                ? <img src={api.fileUrl(f.images[0])} className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200"/>
+                : <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center"><Img size={24} className="text-slate-300"/></div>
+              }
+              <div className="flex flex-col gap-2">
+                <button onClick={() => ref.current.click()} disabled={uploading}
+                  className="text-xs border-2 border-slate-200 rounded-xl px-4 py-2 font-semibold flex items-center gap-1.5 hover:border-[var(--brand)] transition">
+                  <Upload size={13}/>{uploading ? "جاري الرفع..." : "رفع صورة من الجهاز"}
+                </button>
+                {f.images?.[0] && <p className="text-[10px] text-slate-400 text-center">✔ الصورة محفوظة على Supabase</p>}
+              </div>
               <input ref={ref} type="file" accept="image/*" className="hidden" onChange={upload}/>
             </div>
           </div>
-          {[["اسم المنتج","name","text",""],["السعر (ر.ي)","price","number","0"],["اللون","color","text","أسود"],["المقاسات (بفاصلة)","sizes","text","S,M,L"],["الكمية","stock","number","0"]].map(([lbl,k,t,ph])=>(
-            <div key={k}>
-              <label className="text-xs font-black text-slate-500 mb-1.5 block">{lbl}</label>
-              <input type={t} value={k==="sizes"?(f.sizes||[]).join(","):f[k]} onChange={e=>sf(k,k==="sizes"?e.target.value.split(",").map(s=>s.trim()).filter(Boolean):t==="number"?Number(e.target.value)||0:e.target.value)} placeholder={ph}
-                className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] transition"/>
-            </div>
-          ))}
+
+          {/* الاسم */}
           <div>
-            <label className="text-xs font-black text-slate-500 mb-1.5 block">التصنيف</label>
-            <select value={f.category} onChange={e=>sf("category",e.target.value)} className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)]">
-              {cats.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
+            <label className="text-xs font-black text-slate-500 mb-1.5 block">اسم المنتج *</label>
+            <input value={f.name} onChange={e => sf("name", e.target.value)} placeholder="مثال: عطر ورد عماني"
+              className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)] transition"/>
           </div>
-          <button onClick={save} disabled={!f.name||!f.price} className="w-full bg-[var(--brand)] disabled:bg-slate-200 text-white py-3.5 rounded-2xl font-black text-sm hover:shadow-lg transition">حفظ المنتج</button>
+
+          {/* التصنيف + السعر */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-black text-slate-500 mb-1.5 block">التصنيف *</label>
+              <select value={f.category} onChange={e => sf("category", e.target.value)}
+                className="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--brand)]">
+                {cats.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-black text-slate-500 mb-1.5 block">السعر (ر.ي) *</label>
+              <input type="number" value={f.price} onChange={e => sf("price", Number(e.target.value) || 0)}
+                className="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--brand)]"/>
+            </div>
+          </div>
+
+          {/* الكمية */}
+          <div>
+            <label className="text-xs font-black text-slate-500 mb-1.5 block">الكمية المتوفرة</label>
+            <input type="number" min="0" value={f.stock} onChange={e => sf("stock", Number(e.target.value) || 0)}
+              className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand)]"/>
+          </div>
+
+          {/* نوع الخيار */}
+          <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+            <label className="text-xs font-black text-slate-600 block">نوع خيارات المنتج</label>
+            <div className="grid grid-cols-2 gap-2">
+              {VARIANT_TYPES.map(vt => (
+                <button key={vt.value} onClick={() => handleVariantType(vt.value)}
+                  className={`text-xs px-3 py-2 rounded-xl border-2 font-semibold text-right transition
+                    ${variantType === vt.value
+                      ? "bg-[var(--brand)] text-white border-[var(--brand)]"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-[var(--brand)]/50"}`}>
+                  {vt.label}
+                </button>
+              ))}
+            </div>
+
+            {variantType === "custom" && (
+              <div>
+                <label className="text-xs font-black text-slate-500 mb-1.5 block">اسم الخيار المخصص</label>
+                <input value={customLabel} onChange={e => handleCustomLabel(e.target.value)} placeholder="مثال: الإصدار"
+                  className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[var(--brand)]"/>
+              </div>
+            )}
+
+            {variantType !== "none" && (
+              <div>
+                <label className="text-xs font-black text-slate-500 mb-1.5 block">
+                  قيم {variantType === "custom" ? customLabel || "الخيار" : variantType} — مفصولة بفاصلة
+                </label>
+                <input
+                  value={(f.sizes || []).join(",")}
+                  onChange={e => sf("sizes", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                  placeholder={activeVariant?.placeholder || "أدخل القيم مفصولة بفاصلة"}
+                  className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[var(--brand)]"/>
+                {f.sizes?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {f.sizes.map((s, i) => (
+                      <span key={i} className="bg-[var(--brand)]/10 text-[var(--brand)] text-xs px-2.5 py-1 rounded-full font-medium">{s}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button onClick={save} disabled={!f.name || !f.price}
+            className="w-full bg-[var(--brand)] disabled:bg-slate-200 text-white py-3.5 rounded-2xl font-black text-sm hover:shadow-lg transition">
+            حفظ المنتج
+          </button>
         </div>
       </div>
     </div>
@@ -1017,7 +1204,7 @@ function ShippingTab({ zones, onChanged }) {
             ):(
               <div className="flex items-center justify-between">
                 <div><p className="font-bold text-slate-700 flex items-center gap-1.5"><MapPin size={13} className="text-[var(--brand)]"/>{z.city}</p>
-                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني ":fmt(z.cost)}</p>
+                  <p className="text-sm font-black text-[var(--brand)] mt-0.5">{z.cost===0?"مجاني 🎉":fmt(z.cost)}</p>
                   {z.notes&&<p className="text-xs text-slate-400 mt-0.5">{z.notes}</p>}</div>
                 <div className="flex gap-2">
                   <button onClick={()=>setEditing({...z})} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-[var(--brand)] hover:bg-[var(--brand-light)] transition"><Edit3 size={13}/></button>
