@@ -185,7 +185,7 @@ function TopBar({ settings, route, setRoute, cartCount, onCart }) {
           <span className="font-black text-[17px] text-slate-800 group-hover:text-[var(--brand)] transition">{settings.store_name||"متجري"}</span>
         </button>
 
-        <nav className="hidden sm:flex items-center gap-1">
+        <nav className="flex items-center gap-1">
           {[["shop","المتجر"],["myorders","طلباتي"]].map(([r,l])=>(
             <button key={r} onClick={()=>setRoute(r)}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition ${route===r?"bg-[var(--brand)] text-white":"text-slate-500 hover:text-[var(--brand)] hover:bg-[var(--brand-light)]"}`}>
